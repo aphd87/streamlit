@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 from sklearn.tree import export_graphviz, plot_tree
 from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import SelectKBest, f_classif
@@ -22,7 +23,7 @@ def get_data():
 gaming_df_encoded = get_data()
 
 st.title('Welcome to my first data science model deployment')
-st.text ('In this project, I look into predicting video streaming subscriptions. I relied on data from the 2019 Deloitte Media Survey')
+st.text('In this project, I look into predicting video streaming subscriptions \nI relied on data from the 2019 Deloitte Media Survey')
 
 st.header('The dataset')
 st.write(gaming_df_encoded.head())
@@ -69,12 +70,6 @@ selected_features = vif[vif["VIF"] <= 10]["Features"]
 # Create a table for selected features
 selected_features_table = pd.DataFrame({'Features': selected_features})
 
-# Display the selected features table
-st.header('Feature selection')
-st.text('The model isolated these features for this model')
-st.text('Are there better variables available? Try to find a proper combination below!')
-st.dataframe(selected_features_table)
-
 # Initialize the scaler
 scaler = StandardScaler()
 
@@ -99,7 +94,6 @@ roc_auc = roc_auc_score(y_train, y_train_pred_proba)
 
 # Add a new section to allow users to select variables and model
 st.header('Model Selection')
-st.text('Choose up to 5 variables and a model to see the performance')
 
 # Allow users to select up to 5 variables
 selected_variables = st.multiselect('Select up to 5 variables for the model', gaming_df_encoded.columns)
@@ -107,13 +101,16 @@ selected_variables = st.multiselect('Select up to 5 variables for the model', ga
 if selected_variables:
     # Prepare the data with selected features
     X_selected = X[selected_variables]
-
+    
+    # Assuming 'X_train' and 'X_test' are your training and testing data, respectively
+    X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
+    
     # Split the data into training and testing sets
     X_train_sel, X_test_sel, y_train_sel, y_test = train_test_split(X_selected, y, test_size=0.2, random_state=42)
 
     # Choose the model
     model_name = st.selectbox('Choose a model', options=['Random Forest Regression', 'Logistic Regression'])
-
+ 
     if model_name == 'Random Forest Regression':
         model = RandomForestRegressor(n_estimators=100, random_state=42)
 
@@ -124,7 +121,7 @@ if selected_variables:
         scaler_sel.fit(X_train_sel.dropna())
 
         # Fitting / Training the model
-        model.fit(X_train_sel, y_train_sel)
+        model.fit(X_train_sel, y_train)
 
         # Predict on the test set
         X_test_sel_scaled = scaler_sel.transform(X_test_sel.dropna())
@@ -212,10 +209,11 @@ if selected_variables:
         st.write("ROC AUC Score:", roc_auc)
 
         # Calculate true positives, true negatives, false positives, false negatives
-        true_positives = pd.crosstab(y_test, y_test_pred)[1][1]
-        true_negatives = pd.crosstab(y_test, y_test_pred)[0][0]
-        false_positives = pd.crosstab(y_test, y_test_pred)[0][1]
-        false_negatives = pd.crosstab(y_test, y_test_pred)[1][0]
+        conf_matrix = confusion_matrix(y_test, y_test_pred)
+        true_negatives = conf_matrix[0, 0]
+        true_positives = conf_matrix[1, 1]
+        false_negatives = conf_matrix[1, 0]
+        false_positives = conf_matrix[0, 1]
 
         # Print the counts
         st.write("True Positives:", true_positives)
